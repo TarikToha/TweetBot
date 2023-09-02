@@ -18,9 +18,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     private static final String API_KEY = "REMOVED";
+    //    private static final String URL = "http://10.0.2.2:5000/";
+    private static final String URL = "https://flask-app-sb1x.onrender.com/";
+
     private Button cam_button;
     private TextView loading_view;
     private ImageView image_view;
@@ -41,7 +47,8 @@ public class MainActivity extends AppCompatActivity {
     public void start_camera(View view) {
         try {
             File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            File image_file = File.createTempFile("photo_", ".png", dir);
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            File image_file = new File(dir, "IMG_" + timeStamp + ".png");
             image_path = image_file.getAbsolutePath();
 
             Uri image_uri = FileProvider.getUriForFile(this, "com.example.testapp.fileprovider", image_file);
@@ -68,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                 image_view.setImageBitmap(img);
 
                 cam_button.setEnabled(false);
-                new CloudVision.ObjectDetectionTasks(this, API_KEY, img).execute();
+                new CloudVision.ObjectDetectionTasks(this, API_KEY, img, image_path, URL).execute();
                 cam_button.setEnabled(true);
 
             } catch (Exception e) {
@@ -78,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void show_message(String err) {
-        Log.d(TAG, err);
+        Log.e(TAG, err);
         Toast.makeText(this, err, Toast.LENGTH_LONG).show();
     }
 }

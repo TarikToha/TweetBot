@@ -5,6 +5,10 @@ import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.TextView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.services.vision.v1.Vision;
@@ -16,11 +20,19 @@ import com.google.api.services.vision.v1.model.EntityAnnotation;
 import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.lang.ref.WeakReference;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class CloudVision {
 
@@ -44,15 +56,18 @@ public class CloudVision {
     }
 
     static class ObjectDetectionTasks extends AsyncTask<Object, Void, String> {
-
+        private final String URL;
         private final String API_KEY;
         private final Bitmap bitmap;
         private final WeakReference<MainActivity> activityRef;
+        private final String image_path;
 
-        public ObjectDetectionTasks(MainActivity activity, String API_KEY, Bitmap bitmap) {
+        ObjectDetectionTasks(MainActivity activity, String API_KEY, Bitmap bitmap, String image_path, String URL) {
             this.activityRef = new WeakReference<>(activity);
             this.API_KEY = API_KEY;
             this.bitmap = bitmap;
+            this.image_path = image_path;
+            this.URL = URL;
         }
 
         @Override
@@ -61,19 +76,24 @@ public class CloudVision {
                 Vision.Images.Annotate annotateRequest = preprocessing(API_KEY, bitmap);
                 BatchAnnotateImagesResponse batchResponse = annotateRequest.execute();
                 List<EntityAnnotation> labels = batchResponse.getResponses().get(0).getLabelAnnotations();
+
+                JSONObject packet = makeJSON(labels, image_path);
+                Log.d("packet", packet.toString());
+                uploadJSON(packet, URL, activityRef.get());
+
                 return makeString(labels);
             } catch (Exception e) {
-                Log.d("error", "AsyncTask error: " + e);
+                Log.e("error", "AsyncTask error: " + e);
             }
             return "AsyncTask failed";
         }
 
         @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
+        protected void onPostExecute(String results) {
+            super.onPostExecute(results);
             MainActivity activity = activityRef.get();
             TextView outputView = activity.findViewById(R.id.loading_view);
-            outputView.setText(s);
+            outputView.setText(results);
         }
     }
 
@@ -98,16 +118,16 @@ public class CloudVision {
 
         AnnotateImageRequest request = new AnnotateImageRequest();
         request.setImage(inputImage);
-        request.setFeatures(Arrays.asList(labelDetection));
+        request.setFeatures(Collections.singletonList(labelDetection));
 
         BatchAnnotateImagesRequest batchRequests = new BatchAnnotateImagesRequest();
-        batchRequests.setRequests(Arrays.asList(request));
+        batchRequests.setRequests(Collections.singletonList(request));
 
         return vision.images().annotate(batchRequests);
     }
 
     private static String makeString(List<EntityAnnotation> labels) {
-        StringBuilder message = new StringBuilder("I found these things:\n\n");
+        StringBuilder message = new StringBuilder("Object Detection Results:\n\n");
 
         if (labels != null) {
             for (EntityAnnotation label : labels) {
@@ -121,5 +141,41 @@ public class CloudVision {
         return message.toString();
     }
 
+    private static JSONObject makeJSON(List<EntityAnnotation> labels, String image_path) throws JSONException {
+        ArrayList<String> objects = new ArrayList<>();
+        for (EntityAnnotation label : labels) {
+            objects.add(label.getDescription());
+        }
+
+        HashMap<String, Integer> hm = new HashMap<>();
+        for (String object : objects) {
+            Integer count = hm.get(object);
+            hm.put(object, (count == null) ? 1 : count + 1);
+        }
+
+        JSONArray packets = new JSONArray();
+        for (Map.Entry<String, Integer> item : hm.entrySet()) {
+            JSONObject packet = new JSONObject();
+            packet.put("object", item.getKey());
+            packet.put("count", item.getValue());
+            packets.put(packet);
+        }
+
+        JSONObject packet = new JSONObject();
+        packet.put("image_name", new File(image_path).getName());
+        packet.put("labels", packets);
+
+        return packet;
+    }
+
+    private static void uploadJSON(JSONObject packet, String url, MainActivity activity) {
+        RequestQueue requestQueue = Volley.newRequestQueue(activity);
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet,
+                response -> Log.d("success", response.toString()),
+                error -> Log.e("error", error.toString()));
+
+        AsyncTask.execute(() -> requestQueue.add(request));
+    }
 
 }
