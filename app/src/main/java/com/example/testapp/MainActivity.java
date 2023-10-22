@@ -23,9 +23,13 @@ import java.util.Date;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String API_KEY = "AIzaSyDPBhc1Iwilulr-BT-zZ43pU4Avy_h0JUE";
+    private static final String API_KEY = "AIzaSyA14N5kDKnuoXNB_wBeNuTtOm9RG4wiAe8";
+    private static final String GPT_API_KEY = "gAAAAABlNTBHthQ0CGhwdtGT6iMCmKLMZmnexdrAA9uu5nwvW9UQN_jtzkz81YGkrZm4l4_E6zEyWB3_" +
+            "-CnT84CjoBSbui-I0UMWerYvBrsdCgqHFeEzCE38LARU1X0sugi4h3OM77-r";
+
     //    private static final String URL = "http://10.0.2.2:5000/";
     private static final String URL = "https://flask-app-sb1x.onrender.com/";
+    private static final String GPT_URL = "https://api.textcortex.com/v1/texts/social-media-posts";
 
     private Button cam_button;
     private TextView loading_view;
@@ -75,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
                 image_view.setImageBitmap(img);
 
                 cam_button.setEnabled(false);
-                new CloudVision.ObjectDetectionTasks(this, API_KEY, img, image_path, URL).execute();
+                new CloudVision.ObjectDetectionTasks(this, API_KEY, GPT_API_KEY, img, image_path, URL, GPT_URL).execute();
                 cam_button.setEnabled(true);
 
             } catch (Exception e) {

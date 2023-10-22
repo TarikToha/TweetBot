@@ -7,6 +7,7 @@ import android.widget.TextView;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
+import com.android.volley.Response;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
@@ -37,7 +38,7 @@ import java.util.Map;
 public class CloudVision {
 
     static final int MAX_DIMENSION = 1200;
-    private static final int MAX_LABEL_RESULTS = 10;
+    private static final int MAX_LABEL_RESULTS = 5;
 
     static Bitmap scaleBitmapDown(Bitmap bitmap) {
 
@@ -56,18 +57,20 @@ public class CloudVision {
     }
 
     static class ObjectDetectionTasks extends AsyncTask<Object, Void, String> {
-        private final String URL;
-        private final String API_KEY;
+        private final String URL, GPT_URL;
+        private final String API_KEY, GPT_API_KEY;
         private final Bitmap bitmap;
         private final WeakReference<MainActivity> activityRef;
         private final String image_path;
 
-        ObjectDetectionTasks(MainActivity activity, String API_KEY, Bitmap bitmap, String image_path, String URL) {
+        ObjectDetectionTasks(MainActivity activity, String API_KEY, String GPT_API_KEY, Bitmap bitmap, String image_path, String URL, String GPT_URL) {
             this.activityRef = new WeakReference<>(activity);
             this.API_KEY = API_KEY;
+            this.GPT_API_KEY = GPT_API_KEY;
             this.bitmap = bitmap;
             this.image_path = image_path;
             this.URL = URL;
+            this.GPT_URL = GPT_URL;
         }
 
         @Override
@@ -77,9 +80,11 @@ public class CloudVision {
                 BatchAnnotateImagesResponse batchResponse = annotateRequest.execute();
                 List<EntityAnnotation> labels = batchResponse.getResponses().get(0).getLabelAnnotations();
 
-                JSONObject packet = makeJSON(labels, image_path);
+//                JSONObject packet = makeJSON(labels, image_path);
+                JSONObject packet = makeJSONForGPT(labels);
                 Log.d("packet", packet.toString());
-                uploadJSON(packet, URL, activityRef.get());
+//                uploadJSON(packet, URL, activityRef.get());
+                uploadJSONToGPT(packet, GPT_URL, activityRef.get(), GPT_API_KEY);
 
                 return makeString(labels);
             } catch (Exception e) {
@@ -168,12 +173,59 @@ public class CloudVision {
         return packet;
     }
 
+    private static JSONObject makeJSONForGPT(List<EntityAnnotation> labels) throws JSONException {
+        JSONArray keywords = new JSONArray();
+        for (EntityAnnotation label : labels) {
+            keywords.put(label.getDescription());
+        }
+
+        JSONObject packet = new JSONObject();
+        packet.put("context", "fall");
+        packet.put("mode", "twitter");
+        packet.put("model", "gpt-3.5-turbo-16k");
+        packet.put("keywords", keywords);
+
+        return packet;
+    }
+
     private static void uploadJSON(JSONObject packet, String url, MainActivity activity) {
         RequestQueue requestQueue = Volley.newRequestQueue(activity);
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet,
-                response -> Log.d("success", response.toString()),
-                error -> Log.e("error", error.toString()));
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet, response -> Log.d("success", response.toString()), error -> Log.e("error", error.toString()));
+
+        AsyncTask.execute(() -> requestQueue.add(request));
+    }
+
+    private static void uploadJSONToGPT(JSONObject packet, String url, MainActivity activity, String apiKey) {
+        RequestQueue requestQueue = Volley.newRequestQueue(activity);
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, packet,
+                response -> {
+                    Log.i("success", response.toString());
+                    try {
+                        JSONArray outputs = response.getJSONObject("data").getJSONArray("outputs");
+                        String data = outputs.getJSONObject(0).getString("text");
+
+                        StringBuilder text = new StringBuilder("@TweetBot\n\n");
+                        text.append(data.trim());
+
+                        TextView outputView = activity.findViewById(R.id.loading_view);
+                        outputView.setText(text);
+
+                        Log.d("success", text.toString());
+                    } catch (Exception e) {
+                        Log.e("success", e.toString());
+                    }
+                },
+                error -> Log.e("error", error.toString())) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json");
+                headers.put("Authorization", "Bearer " + apiKey);
+                return headers;
+            }
+        };
 
         AsyncTask.execute(() -> requestQueue.add(request));
     }
