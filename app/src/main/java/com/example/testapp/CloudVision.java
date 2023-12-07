@@ -4,10 +4,11 @@ import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
@@ -180,9 +181,10 @@ public class CloudVision {
         }
 
         JSONObject packet = new JSONObject();
-        packet.put("context", "fall");
+        packet.put("context", "UNC Embedded Intelligence Lab");
         packet.put("mode", "twitter");
         packet.put("model", "gpt-3.5-turbo-16k");
+        packet.put("max_tokens", 125);
         packet.put("keywords", keywords);
 
         return packet;
@@ -199,25 +201,24 @@ public class CloudVision {
     private static void uploadJSONToGPT(JSONObject packet, String url, MainActivity activity, String apiKey) {
         RequestQueue requestQueue = Volley.newRequestQueue(activity);
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, packet,
-                response -> {
-                    Log.i("success", response.toString());
-                    try {
-                        JSONArray outputs = response.getJSONObject("data").getJSONArray("outputs");
-                        String data = outputs.getJSONObject(0).getString("text");
-
-                        StringBuilder text = new StringBuilder("@TweetBot\n\n");
-                        text.append(data.trim());
-
-                        TextView outputView = activity.findViewById(R.id.loading_view);
-                        outputView.setText(text);
-
-                        Log.d("success", text.toString());
-                    } catch (Exception e) {
-                        Log.e("success", e.toString());
-                    }
-                },
-                error -> Log.e("error", error.toString())) {
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, packet, response -> {
+            TextView outputView = activity.findViewById(R.id.loading_view);
+            StringBuilder text = new StringBuilder("@TweetBot\n\n");
+            Log.i("success", response.toString());
+            try {
+                JSONArray outputs = response.getJSONObject("data").getJSONArray("outputs");
+                String data = outputs.getJSONObject(0).getString("text");
+                text.append(data.trim());
+                Log.d("success", text.toString());
+            } catch (Exception e) {
+                Toast.makeText(activity.getBaseContext(), e.toString(), Toast.LENGTH_LONG).show();
+                Log.e("success", e.toString());
+            }
+            outputView.setText(text);
+        }, error -> {
+            Toast.makeText(activity.getBaseContext(), error.toString(), Toast.LENGTH_LONG).show();
+            Log.e("error", error.toString());
+        }) {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
@@ -227,6 +228,7 @@ public class CloudVision {
             }
         };
 
+        request.setRetryPolicy(new DefaultRetryPolicy(10000, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         AsyncTask.execute(() -> requestQueue.add(request));
     }
 
