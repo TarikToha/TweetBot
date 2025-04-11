@@ -1,3 +1,12 @@
+import java.util.Properties
+
+val envProps = Properties().apply {
+    val envFile = rootProject.file(".env") // or file("app/.env") if it's inside app/
+    if (envFile.exists()) {
+        load(envFile.inputStream())
+    }
+}
+
 plugins {
     id("com.android.application")
 }
@@ -5,6 +14,10 @@ plugins {
 android {
     namespace = "com.example.testapp"
     compileSdk = 33
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         applicationId = "com.example.testapp"
@@ -14,6 +27,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "CV_KEY", "\"${envProps["CV_KEY"]}\"")
+        buildConfigField("String", "GPT_KEY", "\"${envProps["GPT_KEY"]}\"")
+
     }
 
     buildTypes {

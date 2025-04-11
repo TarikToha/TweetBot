@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Test App"
+rootProject.name = "TweetBot"
 include(":app")

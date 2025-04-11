@@ -1,15 +1,47 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# ========== Gradle ==========
+.gradle/
+**/build/
+!gradle-wrapper.jar
+gradle-app.setting
+
+# Local configuration
 local.properties
+
+# ========== Android Studio / IntelliJ ==========
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ========== Signing Keys / Secrets ==========
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+*.crt
+.env
+*.env.*
+
+# ========== OS / System Files ==========
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+
+# ========== Logs / Reports ==========
+*.log
+*.stacktrace
+
+# ========== ProGuard ==========
+proguard/
+
+# ========== Capture / Output Folders ==========
+captures/
+outputs/
+
+# ========== Misc ==========
+*.orig
+*.rej

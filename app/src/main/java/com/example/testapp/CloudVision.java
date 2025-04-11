@@ -4,7 +4,9 @@ import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -37,7 +39,7 @@ import java.util.Map;
 public class CloudVision {
 
     static final int MAX_DIMENSION = 1200;
-    private static final int MAX_LABEL_RESULTS = 10;
+    private static final int MAX_LABEL_RESULTS = 5;
 
     static Bitmap scaleBitmapDown(Bitmap bitmap) {
 
@@ -53,48 +55,6 @@ public class CloudVision {
         }
 
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false);
-    }
-
-    static class ObjectDetectionTasks extends AsyncTask<Object, Void, String> {
-        private final String URL;
-        private final String API_KEY;
-        private final Bitmap bitmap;
-        private final WeakReference<MainActivity> activityRef;
-        private final String image_path;
-
-        ObjectDetectionTasks(MainActivity activity, String API_KEY, Bitmap bitmap, String image_path, String URL) {
-            this.activityRef = new WeakReference<>(activity);
-            this.API_KEY = API_KEY;
-            this.bitmap = bitmap;
-            this.image_path = image_path;
-            this.URL = URL;
-        }
-
-        @Override
-        protected String doInBackground(Object... objects) {
-            try {
-                Vision.Images.Annotate annotateRequest = preprocessing(API_KEY, bitmap);
-                BatchAnnotateImagesResponse batchResponse = annotateRequest.execute();
-                List<EntityAnnotation> labels = batchResponse.getResponses().get(0).getLabelAnnotations();
-
-                JSONObject packet = makeJSON(labels, image_path);
-                Log.d("packet", packet.toString());
-                uploadJSON(packet, URL, activityRef.get());
-
-                return makeString(labels);
-            } catch (Exception e) {
-                Log.e("error", "AsyncTask error: " + e);
-            }
-            return "AsyncTask failed";
-        }
-
-        @Override
-        protected void onPostExecute(String results) {
-            super.onPostExecute(results);
-            MainActivity activity = activityRef.get();
-            TextView outputView = activity.findViewById(R.id.loading_view);
-            outputView.setText(results);
-        }
     }
 
     private static Vision.Images.Annotate preprocessing(String API_KEY, Bitmap bitmap) throws Exception {
@@ -168,14 +128,105 @@ public class CloudVision {
         return packet;
     }
 
+    private static JSONObject makeJSONForGPT(List<EntityAnnotation> labels) throws JSONException {
+        JSONArray keywords = new JSONArray();
+        for (EntityAnnotation label : labels) {
+            keywords.put(label.getDescription());
+        }
+
+        JSONObject packet = new JSONObject();
+        packet.put("context", "UNC Embedded Intelligence Lab");
+        packet.put("mode", "twitter");
+        packet.put("model", "gemini-2-0-flash");
+        packet.put("max_tokens", 128);
+        packet.put("keywords", keywords);
+
+        return packet;
+    }
+
     private static void uploadJSON(JSONObject packet, String url, MainActivity activity) {
         RequestQueue requestQueue = Volley.newRequestQueue(activity);
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet,
-                response -> Log.d("success", response.toString()),
-                error -> Log.e("error", error.toString()));
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet, response -> Log.d("success", response.toString()), error -> Log.e("error", error.toString()));
 
         AsyncTask.execute(() -> requestQueue.add(request));
+    }
+
+    private static void uploadJSONToGPT(JSONObject packet, String url, MainActivity activity, String apiKey) {
+        RequestQueue requestQueue = Volley.newRequestQueue(activity);
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, packet, response -> {
+            TextView outputView = activity.findViewById(R.id.loading_view);
+            StringBuilder text = new StringBuilder("@TweetBot\n\n");
+            Log.i("success", response.toString());
+            try {
+                JSONArray outputs = response.getJSONObject("data").getJSONArray("outputs");
+                String data = outputs.getJSONObject(0).getString("text");
+                text.append(data.trim());
+                Log.d("success", text.toString());
+            } catch (Exception e) {
+                Toast.makeText(activity.getBaseContext(), e.toString(), Toast.LENGTH_LONG).show();
+                Log.e("success", e.toString());
+            }
+            outputView.setText(text);
+        }, error -> {
+            Toast.makeText(activity.getBaseContext(), error.toString(), Toast.LENGTH_LONG).show();
+            Log.e("error", error.toString());
+        }) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json");
+                headers.put("Authorization", "Bearer " + apiKey);
+                return headers;
+            }
+        };
+
+        request.setRetryPolicy(new DefaultRetryPolicy(10000, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        AsyncTask.execute(() -> requestQueue.add(request));
+    }
+
+    static class ObjectDetectionTasks extends AsyncTask<Object, Void, String> {
+        private final String GPT_URL;
+        private final String CV_KEY, GPT_KEY;
+        private final Bitmap bitmap;
+        private final WeakReference<MainActivity> activityRef;
+
+        ObjectDetectionTasks(MainActivity activity, String CV_KEY, String GPT_KEY, Bitmap bitmap, String GPT_URL) {
+            this.activityRef = new WeakReference<>(activity);
+            this.CV_KEY = CV_KEY;
+            this.GPT_KEY = GPT_KEY;
+            this.bitmap = bitmap;
+            this.GPT_URL = GPT_URL;
+        }
+
+        @Override
+        protected String doInBackground(Object... objects) {
+            try {
+                Vision.Images.Annotate annotateRequest = preprocessing(CV_KEY, bitmap);
+                BatchAnnotateImagesResponse batchResponse = annotateRequest.execute();
+                List<EntityAnnotation> labels = batchResponse.getResponses().get(0).getLabelAnnotations();
+
+//                JSONObject packet = makeJSON(labels, image_path);
+                JSONObject packet = makeJSONForGPT(labels);
+                Log.d("packet", packet.toString());
+//                uploadJSON(packet, URL, activityRef.get());
+                uploadJSONToGPT(packet, GPT_URL, activityRef.get(), GPT_KEY);
+
+                return makeString(labels);
+            } catch (Exception e) {
+                Log.e("error", "AsyncTask error: " + e);
+            }
+            return "AsyncTask failed";
+        }
+
+        @Override
+        protected void onPostExecute(String results) {
+            super.onPostExecute(results);
+            MainActivity activity = activityRef.get();
+            TextView outputView = activity.findViewById(R.id.loading_view);
+            outputView.setText(results);
+        }
     }
 
 }

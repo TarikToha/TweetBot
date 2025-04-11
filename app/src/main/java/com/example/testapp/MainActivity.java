@@ -23,14 +23,14 @@ import java.util.Date;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String API_KEY = "REMOVED";
-    //    private static final String URL = "http://10.0.2.2:5000/";
-    private static final String URL = "https://flask-app-sb1x.onrender.com/";
+    private static final String CV_KEY = BuildConfig.CV_KEY;
+    private static final String GPT_KEY = BuildConfig.GPT_KEY;
 
+    private static final String GPT_URL = "https://api.textcortex.com/v1/texts/social-media-posts";
+    private static final String TAG = MainActivity.class.getSimpleName();
     private Button cam_button;
     private TextView loading_view;
     private ImageView image_view;
-    private static final String TAG = MainActivity.class.getSimpleName();
     private String image_path;
 
 
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                 image_view.setImageBitmap(img);
 
                 cam_button.setEnabled(false);
-                new CloudVision.ObjectDetectionTasks(this, API_KEY, img, image_path, URL).execute();
+                new CloudVision.ObjectDetectionTasks(this, CV_KEY, GPT_KEY, img, GPT_URL).execute();
                 cam_button.setEnabled(true);
 
             } catch (Exception e) {
