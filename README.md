@@ -2,42 +2,43 @@
 
 ![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-TweetBot is an Android app that turns photos into tweet-style captions using Google Cloud Vision and
-the TextCortex LLM. Snap a picture, detect key objects, and instantly generate a shareable
-summary—perfect for creators and social media tools. Demoed at Sitterson Hall on October 23, 2023.
+TweetBot is an Android app that converts photos into tweet-style captions using Google Cloud Vision
+and the TextCortex LLM. Simply snap a picture, extract object labels, and generate a concise
+summary—ideal for creators, journalists, and social media automation. This app was demoed at
+Sitterson Hall on October 23, 2023.
 
 ---
 
-## Requirements
+## Setup
 
 - Android Studio
 - Android 8.0+ (API level 26+)
 - Google Cloud Vision API key
 - TextCortex API key
 
-Add the keys to a `.env` file:
+Add your API keys to `local.properties`:
 
-```env
+```properties
 CV_KEY=your_google_cloud_vision_api_key_here
 GPT_KEY=your_textcortex_or_gemini_key_here
 ```
 
 ---
 
-## Capture & Generate
+## Usage
 
-1. Tap **Start Camera** to launch the camera
-2. Cloud Vision detects labels from the image
-3. Labels are forwarded to TextCortex
-4. A tweet-style summary is generated and displayed
+1. Tap **Start Camera** to take a photo
+2. Cloud Vision identifies objects and generates labels
+3. Labels are sent to TextCortex
+4. The app displays a tweet-style AI-generated summary
 
 ---
 
-## Run Locally
+## Development
 
-Open the project in Android Studio and run on a device or emulator with camera support.
+Open the project in Android Studio and run it on a device or emulator with camera support.
 
-Make sure the `.env` file is properly configured before building.
+Ensure your `local.properties` file is correctly configured with valid API keys.
 
 ---
 

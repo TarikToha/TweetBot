@@ -1,11 +1,15 @@
-import java.util.Properties
+val cvKey = rootProject.file("local.properties")
+    .readLines()
+    .find { it.startsWith("CV_KEY=") }
+    ?.substringAfter("=")
+    ?.trim() ?: ""
 
-val envProps = Properties().apply {
-    val envFile = rootProject.file(".env") // or file("app/.env") if it's inside app/
-    if (envFile.exists()) {
-        load(envFile.inputStream())
-    }
-}
+val gptKey = rootProject.file("local.properties")
+    .readLines()
+    .find { it.startsWith("GPT_KEY=") }
+    ?.substringAfter("=")
+    ?.trim() ?: ""
+
 
 plugins {
     id("com.android.application")
@@ -28,8 +32,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "CV_KEY", "\"${envProps["CV_KEY"]}\"")
-        buildConfigField("String", "GPT_KEY", "\"${envProps["GPT_KEY"]}\"")
+        buildConfigField("String", "CV_KEY", "\"$cvKey\"")
+        buildConfigField("String", "GPT_KEY", "\"$gptKey\"")
 
     }
 
