@@ -22,18 +22,26 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+/**
+ * MainActivity that captures a photo using the camera,
+ * triggers Cloud Vision label detection, and forwards results
+ * to a GPT-compatible endpoint for content generation.
+ */
 public class MainActivity extends AppCompatActivity {
+
     private static final String CV_KEY = BuildConfig.CV_KEY;
     private static final String GPT_KEY = BuildConfig.GPT_KEY;
-
     private static final String GPT_URL = "https://api.textcortex.com/v1/texts/social-media-posts";
     private static final String TAG = MainActivity.class.getSimpleName();
+
     private Button cam_button;
     private TextView loading_view;
     private ImageView image_view;
     private String image_path;
 
-
+    /**
+     * Initializes UI elements.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,6 +52,9 @@ public class MainActivity extends AppCompatActivity {
         image_view = findViewById(R.id.image_view);
     }
 
+    /**
+     * Launches the device camera to capture an image.
+     */
     public void start_camera(View view) {
         try {
             File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -61,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Handles the result after image capture.
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -71,7 +85,6 @@ public class MainActivity extends AppCompatActivity {
 
                 Uri uri = Uri.fromFile(new File(image_path));
                 Bitmap img = CloudVision.scaleBitmapDown(MediaStore.Images.Media.getBitmap(getContentResolver(), uri));
-//                Bitmap img = BitmapFactory.decodeFile(image_path);
                 image_view.setImageBitmap(img);
 
                 cam_button.setEnabled(false);
@@ -84,6 +97,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Displays a Toast and logs an error message.
+     */
     private void show_message(String err) {
         Log.e(TAG, err);
         Toast.makeText(this, err, Toast.LENGTH_LONG).show();

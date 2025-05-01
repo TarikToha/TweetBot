@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:context=".MainActivity">
 
+    <!-- Button to start the camera intent -->
     <Button
         android:id="@+id/cam_button"
         android:layout_width="wrap_content"
@@ -17,6 +17,7 @@
         android:text="@string/button_text"
         android:textSize="14pt" />
 
+    <!-- TextView for loading status or label summary -->
     <TextView
         android:id="@+id/loading_view"
         android:layout_width="wrap_content"
@@ -26,6 +27,7 @@
         android:text="@string/welcome_text"
         android:textSize="12pt" />
 
+    <!-- ImageView to preview the captured image -->
     <ImageView
         android:id="@+id/image_view"
         android:layout_width="match_parent"

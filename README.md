@@ -2,7 +2,9 @@
 
 ![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-TweetBot is an Android app that captures photos, detects visual content using the Google Cloud Vision API, and generates scene-based tweet-style descriptions using a Large Language Model (LLM) via the TextCortex API—designed for automated social media content creation.
+TweetBot is an Android app that turns photos into tweet-style captions using Google Cloud Vision and
+the TextCortex LLM. Snap a picture, detect key objects, and instantly generate a shareable
+summary—perfect for creators and social media tools. Demoed at Sitterson Hall on October 23, 2023.
 
 ---
 

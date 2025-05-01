@@ -36,42 +36,49 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * CloudVision: Integrates Google Cloud Vision API for label detection
+ * and forwards the results to a GPT-style backend to generate summaries or content.
+ * Includes support for both content analysis and Twitter-style text generation.
+ */
 public class CloudVision {
 
     static final int MAX_DIMENSION = 1200;
     private static final int MAX_LABEL_RESULTS = 5;
 
+    /**
+     * Resizes image to a fixed dimension while maintaining aspect ratio.
+     */
     static Bitmap scaleBitmapDown(Bitmap bitmap) {
-
         int originalWidth = bitmap.getWidth();
         int originalHeight = bitmap.getHeight();
         int resizedWidth = MAX_DIMENSION;
         int resizedHeight = MAX_DIMENSION;
 
         if (originalHeight > originalWidth) {
-            resizedWidth = (int) (resizedHeight * (float) originalWidth / (float) originalHeight);
+            resizedWidth = (int) (resizedHeight * (float) originalWidth / originalHeight);
         } else if (originalWidth > originalHeight) {
-            resizedHeight = (int) (resizedWidth * (float) originalHeight / (float) originalWidth);
+            resizedHeight = (int) (resizedWidth * (float) originalHeight / originalWidth);
         }
 
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false);
     }
 
+    /**
+     * Builds and returns an annotate request to the Cloud Vision API.
+     */
     private static Vision.Images.Annotate preprocessing(String API_KEY, Bitmap bitmap) throws Exception {
         Vision.Builder visionBuilder = new Vision.Builder(new NetHttpTransport(), new AndroidJsonFactory(), null);
         visionBuilder.setVisionRequestInitializer(new VisionRequestInitializer(API_KEY));
         Vision vision = visionBuilder.build();
 
-        // Convert the bitmap to a JPEG
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
         byte[] imageBytes = byteArrayOutputStream.toByteArray();
 
-        // Base64 encode the JPEG
         Image inputImage = new Image();
         inputImage.encodeContent(imageBytes);
 
-        // add the features we want
         Feature labelDetection = new Feature();
         labelDetection.setType("LABEL_DETECTION");
         labelDetection.setMaxResults(MAX_LABEL_RESULTS);
@@ -86,13 +93,15 @@ public class CloudVision {
         return vision.images().annotate(batchRequests);
     }
 
+    /**
+     * Builds a user-readable string from entity annotations.
+     */
     private static String makeString(List<EntityAnnotation> labels) {
         StringBuilder message = new StringBuilder("Object Detection Results:\n\n");
 
         if (labels != null) {
             for (EntityAnnotation label : labels) {
-                message.append(String.format(Locale.US, "%.3f: %s", label.getScore(), label.getDescription()));
-                message.append("\n");
+                message.append(String.format(Locale.US, "%.3f: %s\n", label.getScore(), label.getDescription()));
             }
         } else {
             message.append("nothing");
@@ -101,6 +110,9 @@ public class CloudVision {
         return message.toString();
     }
 
+    /**
+     * Formats label annotations into a JSON structure.
+     */
     private static JSONObject makeJSON(List<EntityAnnotation> labels, String image_path) throws JSONException {
         ArrayList<String> objects = new ArrayList<>();
         for (EntityAnnotation label : labels) {
@@ -128,6 +140,9 @@ public class CloudVision {
         return packet;
     }
 
+    /**
+     * Builds a GPT-compatible input structure for keyword-based content generation.
+     */
     private static JSONObject makeJSONForGPT(List<EntityAnnotation> labels) throws JSONException {
         JSONArray keywords = new JSONArray();
         for (EntityAnnotation label : labels) {
@@ -144,14 +159,21 @@ public class CloudVision {
         return packet;
     }
 
+    /**
+     * Sends structured packet to a REST endpoint (PUT).
+     */
     private static void uploadJSON(JSONObject packet, String url, MainActivity activity) {
         RequestQueue requestQueue = Volley.newRequestQueue(activity);
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet, response -> Log.d("success", response.toString()), error -> Log.e("error", error.toString()));
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, packet,
+                response -> Log.d("success", response.toString()),
+                error -> Log.e("error", error.toString()));
 
         AsyncTask.execute(() -> requestQueue.add(request));
     }
 
+    /**
+     * Sends JSON to GPT-compatible REST endpoint with authentication.
+     */
     private static void uploadJSONToGPT(JSONObject packet, String url, MainActivity activity, String apiKey) {
         RequestQueue requestQueue = Volley.newRequestQueue(activity);
 
@@ -186,6 +208,9 @@ public class CloudVision {
         AsyncTask.execute(() -> requestQueue.add(request));
     }
 
+    /**
+     * AsyncTask wrapper to run label detection and forward results to Gemini/GPT endpoint.
+     */
     static class ObjectDetectionTasks extends AsyncTask<Object, Void, String> {
         private final String GPT_URL;
         private final String CV_KEY, GPT_KEY;
@@ -207,10 +232,8 @@ public class CloudVision {
                 BatchAnnotateImagesResponse batchResponse = annotateRequest.execute();
                 List<EntityAnnotation> labels = batchResponse.getResponses().get(0).getLabelAnnotations();
 
-//                JSONObject packet = makeJSON(labels, image_path);
                 JSONObject packet = makeJSONForGPT(labels);
                 Log.d("packet", packet.toString());
-//                uploadJSON(packet, URL, activityRef.get());
                 uploadJSONToGPT(packet, GPT_URL, activityRef.get(), GPT_KEY);
 
                 return makeString(labels);
@@ -228,5 +251,4 @@ public class CloudVision {
             outputView.setText(results);
         }
     }
-
 }
